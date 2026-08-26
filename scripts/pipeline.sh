@@ -9,11 +9,11 @@
 # The player then picks a rendition per segment based on measured bandwidth
 # (Adaptive Bitrate Streaming / ABR).
 #
-# Requires: ffmpeg (npm i ffmpeg-static gives you a static binary; `FF=` below)
+# Requires: ffmpeg available on PATH (or set FFMPEG_BIN to its path)
 # Usage:    bash scripts/pipeline.sh
 # ============================================================================
 set -e
-FF=$(node -p "require('ffmpeg-static')" 2>/dev/null || echo ffmpeg)
+FF="${FFMPEG_BIN:-ffmpeg}"
 mkdir -p media/src media/hls
 
 # 1. FETCH royalty-free sources (Blender Foundation open movies / W3C test media)

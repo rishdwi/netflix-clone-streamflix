@@ -14,13 +14,15 @@
 // SECURITY: paths are whitelist-validated to stop directory traversal attacks
 // (e.g. GET /api/stream/bunny/../../.env) — a classic viva question!
 // ============================================================================
-import { promises as fs } from "fs";
 import path from "path";
+import { getDeployStore } from "@netlify/blobs";
 import { err } from "@/server/utils/respond";
 import { requireUser } from "@/server/middleware/auth";
 import { AVAILABLE_STREAMS } from "@/lib/constants";
 
-const MEDIA_ROOT = path.join(process.cwd(), "media", "hls");
+// Segments live in Netlify Blobs (staged from media/hls/ at build time by
+// scripts/stage-media-blobs.js) rather than on local disk — the HLS ladder is
+// ~236 MB, far too large to bundle into the server function alongside it.
 const SEGMENT_RE = /^[a-z0-9._-]+$/i; // whitelist: "720p", "index.m3u8", "seg_004.ts"
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -41,19 +43,21 @@ export async function serveStreamFile(slug: string, parts: string[], req: Reques
     return err(400, "Invalid path");
   }
 
-  const abs = path.join(MEDIA_ROOT, slug, ...parts);
-  if (!abs.startsWith(MEDIA_ROOT + path.sep)) return err(400, "Invalid path"); // belt & braces
+  // Key mirrors the staged layout: .netlify/blobs/deploy/hls/<slug>/<parts...>
+  const key = ["hls", slug, ...parts].join("/");
 
-  // --- Stat the file ------------------------------------------------------------
-  let stat;
+  // --- Fetch the segment from Blobs ---------------------------------------------
+  const store = getDeployStore();
+  let data: ArrayBuffer | null;
   try {
-    stat = await fs.stat(abs);
-    if (!stat.isFile()) throw new Error("not a file");
+    data = await store.get(key, { type: "arrayBuffer" });
   } catch {
     return err(404, "Segment not found");
   }
+  if (!data) return err(404, "Segment not found");
+  const buffer = Buffer.from(data);
 
-  const ext = path.extname(abs).toLowerCase();
+  const ext = path.extname(key).toLowerCase();
   const contentType = CONTENT_TYPES[ext] ?? "application/octet-stream";
 
   // Playlists can change between versions => short cache.
@@ -62,7 +66,7 @@ export async function serveStreamFile(slug: string, parts: string[], req: Reques
     ext === ".m3u8" ? "no-cache" : "public, max-age=31536000, immutable";
 
   // --- Range parsing ------------------------------------------------------------
-  const size = stat.size;
+  const size = buffer.length;
   const range = req.headers.get("range");
 
   if (range) {
@@ -90,11 +94,8 @@ export async function serveStreamFile(slug: string, parts: string[], req: Reques
       });
     }
 
-    // Read ONLY the requested byte window — never the whole file.
-    const handle = await fs.open(abs, "r");
-    const chunk = Buffer.alloc(end - start + 1);
-    await handle.read(chunk, 0, chunk.length, start);
-    await handle.close();
+    // Slice the requested byte window out of the already-fetched buffer.
+    const chunk = buffer.subarray(start, end + 1);
 
     return new Response(new Uint8Array(chunk), {
       status: 206, // Partial Content
@@ -109,7 +110,6 @@ export async function serveStreamFile(slug: string, parts: string[], req: Reques
   }
 
   // --- Full-file response (normal HLS segment fetch) ---------------------------
-  const buffer = await fs.readFile(abs);
   return new Response(new Uint8Array(buffer), {
     status: 200,
     headers: {

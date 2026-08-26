@@ -82,8 +82,8 @@ Open **http://localhost:3000**.
 
 | Role    | Email                 | Password   | Can access      |
 | ------- | --------------------- | ---------- | --------------- |
-| Viewer  | `demo@streamflix.dev` | `demo1234` | browse/watch    |
-| Admin   | `admin@streamflix.dev`| `admin123` | **+ /admin**    |
+| Viewer  | add you email  | add password and login ` | browse/watch    |
+
 
 ---
 
@@ -93,7 +93,7 @@ Open **http://localhost:3000**.
 # log in, keep the cookie
 curl -c jar.txt -X POST localhost:3000/api/auth/login \
   -H 'content-type: application/json' \
-  -d '{"email":"demo@streamflix.dev","password":"demo1234"}'
+  -d '{"email":login ,"password":"******}'
 
 # adaptive master playlist (two renditions)
 curl -b jar.txt localhost:3000/api/stream/bunny/master.m3u8

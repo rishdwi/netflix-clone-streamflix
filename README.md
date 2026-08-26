@@ -1,4 +1,4 @@
-# StreamFlix — a Netflix Clone (BCA Final Year Project)
+# StreamFlix — a Netflix Clone 
 
 A **full-stack video streaming platform** with Netflix-style UI: JWT authentication,
 adaptive-bitrate **HLS streaming with HTTP range requests**, per-user watchlist,

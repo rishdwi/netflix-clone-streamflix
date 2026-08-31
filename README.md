@@ -76,7 +76,7 @@ npm run build && npm start    # production
 npm run dev                   # development
 ```
 
-Open **http://localhost:3000**.
+Open **(https://ystreamflix.netlify.app/browse)**.
 
 ### Demo accounts (seeded)
 
